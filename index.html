@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PassAudit — Password Security Checker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #07090f;
+      --surface: #0e1117;
+      --surface2: #141720;
+      --border: #1c2030;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59,130,246,0.15);
+      --green: #22c55e;
+      --green-dim: rgba(34,197,94,0.12);
+      --red: #ef4444;
+      --red-dim: rgba(239,68,68,0.12);
+      --yellow: #f59e0b;
+      --yellow-dim: rgba(245,158,11,0.12);
+      --orange: #f97316;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Inter', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 16px 80px;
+    }
+
+    /* NAV */
+    nav {
+      width: 100%;
+      max-width: 860px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 64px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .logo-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-name span { color: var(--accent); }
+
+    .nav-tag {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    /* HERO */
+    .hero {
+      text-align: center;
+      max-width: 600px;
+      margin-bottom: 56px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(59,130,246,0.3);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--accent);
+      margin-bottom: 20px;
+      letter-spacing: 0.02em;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      margin-bottom: 16px;
+    }
+
+    .hero p {
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.7;
+      font-weight: 400;
+    }
+
+    /* MAIN CARD */
+    .card {
+      width: 100%;
+      max-width: 560px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px;
+      margin-bottom: 24px;
+    }
+
+    .section-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 15px 50px 15px 16px;
+      font-family: var(--mono);
+      font-size: 0.95rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .eye-btn {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 17px;
+      padding: 0;
+      transition: color 0.2s;
+    }
+    .eye-btn:hover { color: var(--text); }
+
+    /* STRENGTH METER */
+    .strength-section {
+      margin-top: 20px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .strength-section.visible { opacity: 1; }
+
+    .strength-bars {
+      display: flex;
+      gap: 5px;
+      margin-top: 8px;
+      margin-bottom: 10px;
+    }
+
+    .bar {
+      flex: 1;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      transition: background 0.3s;
+    }
+
+    .bar.active.s1 { background: var(--red); }
+    .bar.active.s2 { background: var(--orange); }
+    .bar.active.s3 { background: var(--yellow); }
+    .bar.active.s4 { background: #84cc16; }
+    .bar.active.s5 { background: var(--green); }
+
+    .strength-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .strength-label {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .strength-tips {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tip {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .tip.pass { color: var(--green); border-color: rgba(34,197,94,0.3); background: var(--green-dim); }
+    .tip.fail { color: var(--red); border-color: rgba(239,68,68,0.25); }
+
+    /* DIVIDER */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 28px 0;
+    }
+
+    /* HASH PREVIEW */
+    .hash-row {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 20px;
+      min-height: 42px;
+      line-height: 1.6;
+    }
+    .hash-row .sent { color: var(--accent); font-weight: 600; }
+    .hash-row .rest { color: #1e2a3a; }
+
+    /* CHECK BUTTON */
+    .check-btn {
+      width: 100%;
+      padding: 15px;
+      background: var(--accent);
+      color: #fff;
+      font-family: var(--sans);
+      font-weight: 600;
+      font-size: 0.95rem;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .check-btn:hover:not(:disabled) { opacity: 0.88; }
+    .check-btn:active:not(:disabled) { transform: scale(0.99); }
+    .check-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .spinner {
+      width: 17px; height: 17px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* RESULT */
+    .result {
+      margin-top: 24px;
+      border-radius: 14px;
+      padding: 22px;
+      display: none;
+      animation: fadeUp 0.3s ease;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .result.safe   { background: var(--green-dim); border: 1px solid rgba(34,197,94,0.25); }
+    .result.warn   { background: var(--yellow-dim); border: 1px solid rgba(245,158,11,0.25); }
+    .result.danger { background: var(--red-dim); border: 1px solid rgba(239,68,68,0.25); }
+
+    .result-top { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .result-icon { font-size: 1.6rem; }
+    .result-title { font-size: 1rem; font-weight: 700; }
+    .result.safe .result-title   { color: var(--green); }
+    .result.warn .result-title   { color: var(--yellow); }
+    .result.danger .result-title { color: var(--red); }
+
+    .result-count {
+      font-family: var(--mono);
+      font-size: 2.2rem;
+      font-weight: 600;
+      margin: 6px 0;
+    }
+    .result.danger .result-count { color: var(--red); }
+    .result.warn   .result-count { color: var(--yellow); }
+
+    .result-desc { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+
+    /* HOW IT WORKS */
+    .how-card {
+      width: 100%;
+      max-width: 560px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 36px;
+      margin-bottom: 24px;
+    }
+
+    .how-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: var(--text);
+    }
+
+    .steps { display: flex; flex-direction: column; gap: 14px; }
+
+    .step {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--accent);
+      background: var(--accent-glow);
+      border: 1px solid rgba(59,130,246,0.25);
+      border-radius: 6px;
+      padding: 3px 8px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .step p { font-size: 0.875rem; color: var(--muted); line-height: 1.6; }
+    .step p strong { color: var(--text); font-weight: 500; }
+
+    /* FOOTER */
+    footer {
+      margin-top: 48px;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: #1a2030;
+      letter-spacing: 0.1em;
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="logo">
+      <div class="logo-icon">🔑</div>
+      <div class="logo-name">Pass<span>Audit</span></div>
+    </div>
+    <div class="nav-tag">PRIVACY-FIRST · K-ANONYMITY</div>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-badge">🔒 Your password never leaves your device</div>
+    <h1>Audit your password.<br/>Stay protected.</h1>
+    <p>Instantly check if your password appeared in a known data breach and how strong it really is — using military-grade privacy techniques.</p>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Enter password to audit</div>
+    <div class="input-wrap">
+      <input type="password" id="pwInput" placeholder="Type a password..." autocomplete="off" spellcheck="false"/>
+      <button class="eye-btn" id="eyeBtn">👁</button>
+    </div>
+
+    <!-- Strength Meter -->
+    <div class="strength-section" id="strengthSection">
+      <div class="strength-bars">
+        <div class="bar" id="b1"></div>
+        <div class="bar" id="b2"></div>
+        <div class="bar" id="b3"></div>
+        <div class="bar" id="b4"></div>
+        <div class="bar" id="b5"></div>
+      </div>
+      <div class="strength-info">
+        <span class="strength-label" id="strengthLabel"></span>
+        <span style="font-size:12px;color:var(--muted)" id="entropyLabel"></span>
+      </div>
+      <div class="strength-tips" id="tips"></div>
+    </div>
+
+    <hr class="divider"/>
+
+    <div class="section-label">Hash preview (k-anonymity)</div>
+    <div class="hash-row" id="hashRow">Type a password to see the privacy model in action...</div>
+
+    <button class="check-btn" id="checkBtn" disabled>
+      <div class="spinner" id="spinner"></div>
+      <span id="btnLabel">Run Breach Audit</span>
+    </button>
+
+    <div class="result" id="result">
+      <div class="result-top">
+        <div class="result-icon" id="rIcon"></div>
+        <div class="result-title" id="rTitle"></div>
+      </div>
+      <div class="result-count" id="rCount"></div>
+      <div class="result-desc" id="rDesc"></div>
+    </div>
+  </div>
+
+  <div class="how-card">
+    <div class="how-title">How PassAudit protects your privacy</div>
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">01</span>
+        <p><strong>Local hashing.</strong> Your password is converted to a SHA-1 hash entirely inside your browser using the Web Crypto API. It never leaves your device in plain text.</p>
+      </div>
+      <div class="step">
+        <span class="step-num">02</span>
+        <p><strong>k-Anonymity model.</strong> Only the first 5 characters of your 40-character hash are sent to the Have I Been Pwned API — making it mathematically impossible to reverse-engineer your password.</p>
+      </div>
+      <div class="step">
+        <span class="step-num">03</span>
+        <p><strong>Local comparison.</strong> The API returns thousands of matching hash fragments. Your browser checks them locally — the server never learns your full hash.</p>
+      </div>
+      <div class="step">
+        <span class="step-num">04</span>
+        <p><strong>Instant audit.</strong> You see exactly how many times that password appeared in real-world data breaches — and a full strength analysis so you know exactly where you stand.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>PASSAUDIT &mdash; KNOW YOUR RISK. OWN YOUR SECURITY.</footer>
+
+  <script>
+    const pwInput   = document.getElementById('pwInput');
+    const eyeBtn    = document.getElementById('eyeBtn');
+    const hashRow   = document.getElementById('hashRow');
+    const checkBtn  = document.getElementById('checkBtn');
+    const btnLabel  = document.getElementById('btnLabel');
+    const spinner   = document.getElementById('spinner');
+    const result    = document.getElementById('result');
+    const rIcon     = document.getElementById('rIcon');
+    const rTitle    = document.getElementById('rTitle');
+    const rCount    = document.getElementById('rCount');
+    const rDesc     = document.getElementById('rDesc');
+    const strengthSection = document.getElementById('strengthSection');
+    const strengthLabel   = document.getElementById('strengthLabel');
+    const entropyLabel    = document.getElementById('entropyLabel');
+    const tipsEl          = document.getElementById('tips');
+    const bars = [1,2,3,4,5].map(i => document.getElementById('b'+i));
+
+    async function sha1(str) {
+      const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('').toUpperCase();
+    }
+
+    function calcStrength(pw) {
+      let score = 0;
+      const checks = {
+        length8:   pw.length >= 8,
+        length12:  pw.length >= 12,
+        lowercase: /[a-z]/.test(pw),
+        uppercase: /[A-Z]/.test(pw),
+        numbers:   /[0-9]/.test(pw),
+        symbols:   /[^a-zA-Z0-9]/.test(pw),
+        noRepeat:  !/(.)(\1{2,})/.test(pw),
+      };
+      if (checks.length8)  score++;
+      if (checks.length12) score++;
+      if (checks.lowercase && checks.uppercase) score++;
+      if (checks.numbers)  score++;
+      if (checks.symbols)  score++;
+
+      let charset = 0;
+      if (checks.lowercase) charset += 26;
+      if (checks.uppercase) charset += 26;
+      if (checks.numbers)   charset += 10;
+      if (checks.symbols)   charset += 32;
+      const entropy = charset > 0 ? Math.round(pw.length * Math.log2(charset)) : 0;
+
+      const labels = ['', 'Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'];
+      const colors = ['', 'var(--red)', 'var(--orange)', 'var(--yellow)', '#84cc16', 'var(--green)'];
+      return { score, checks, entropy, label: labels[score] || 'Very Weak', color: colors[score] || colors[1] };
+    }
+
+    function updateStrength(pw) {
+      if (!pw) { strengthSection.classList.remove('visible'); return; }
+      strengthSection.classList.add('visible');
+      const s = calcStrength(pw);
+
+      bars.forEach((b, i) => {
+        b.className = 'bar';
+        if (i < s.score) b.classList.add('active', `s${s.score}`);
+      });
+
+      strengthLabel.textContent = s.label;
+      strengthLabel.style.color = s.color;
+      entropyLabel.textContent = `~${s.entropy} bits entropy`;
+
+      const tipDefs = [
+        { pass: s.checks.length8,   text: '8+ chars' },
+        { pass: s.checks.length12,  text: '12+ chars' },
+        { pass: s.checks.uppercase, text: 'Uppercase' },
+        { pass: s.checks.numbers,   text: 'Numbers' },
+        { pass: s.checks.symbols,   text: 'Symbols' },
+        { pass: s.checks.noRepeat,  text: 'No repeats' },
+      ];
+
+      tipsEl.innerHTML = tipDefs.map(t =>
+        `<span class="tip ${t.pass ? 'pass' : 'fail'}">${t.pass ? '✓' : '✗'} ${t.text}</span>`
+      ).join('');
+    }
+
+    pwInput.addEventListener('input', async () => {
+      const val = pwInput.value;
+      checkBtn.disabled = val.length === 0;
+      result.style.display = 'none';
+      updateStrength(val);
+
+      if (!val) {
+        hashRow.textContent = 'Type a password to see the privacy model in action...';
+        return;
+      }
+      const hash = await sha1(val);
+      hashRow.innerHTML = `SHA-1: <span class="sent">${hash.slice(0,5)}</span><span class="rest">${hash.slice(5)}</span> &nbsp;·&nbsp; only <span class="sent">${hash.slice(0,5)}</span> transmitted`;
+    });
+
+    eyeBtn.addEventListener('click', () => {
+      const hidden = pwInput.type === 'password';
+      pwInput.type = hidden ? 'text' : 'password';
+      eyeBtn.textContent = hidden ? '🙈' : '👁';
+    });
+
+    checkBtn.addEventListener('click', async () => {
+      const val = pwInput.value;
+      if (!val) return;
+      spinner.style.display = 'block';
+      btnLabel.style.display = 'none';
+      checkBtn.disabled = true;
+      result.style.display = 'none';
+
+      try {
+        const hash   = await sha1(val);
+        const prefix = hash.slice(0, 5);
+        const suffix = hash.slice(5);
+        const res    = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`);
+        const text   = await res.text();
+        let count = 0;
+        for (const line of text.split('\n')) {
+          const [h, c] = line.split(':');
+          if (h.trim().toUpperCase() === suffix) { count = parseInt(c); break; }
+        }
+        showResult(count);
+      } catch {
+        showError();
+      } finally {
+        spinner.style.display = 'none';
+        btnLabel.style.display = 'block';
+        checkBtn.disabled = false;
+      }
+    });
+
+    function showResult(count) {
+      result.style.display = 'block';
+      if (count === 0) {
+        result.className = 'result safe';
+        rIcon.textContent  = '✅';
+        rTitle.textContent = 'Not found in any known breach';
+        rCount.textContent = '';
+        rDesc.textContent  = 'This password has not appeared in any breach database we know of. Still — use a unique password for every account and consider a password manager.';
+      } else if (count < 100) {
+        result.className = 'result warn';
+        rIcon.textContent  = '⚠️';
+        rTitle.textContent = 'Found in data breaches';
+        rCount.textContent = count.toLocaleString() + ' exposures';
+        rDesc.textContent  = 'This password has been seen in known breaches. Change it immediately on every site you use it.';
+      } else {
+        result.className = 'result danger';
+        rIcon.textContent  = '🚨';
+        rTitle.textContent = 'Critically compromised';
+        rCount.textContent = count.toLocaleString() + ' exposures';
+        rDesc.textContent  = 'This password is actively used in credential stuffing attacks. Change it everywhere — right now.';
+      }
+    }
+
+    function showError() {
+      result.style.display = 'block';
+      result.className = 'result warn';
+      rIcon.textContent  = '⚡';
+      rTitle.textContent = 'Audit failed';
+      rCount.textContent = '';
+      rDesc.textContent  = 'Could not reach the breach database. Check your connection and try again.';
+    }
+  </script>
+  <script data-goatcounter="https://passaudit.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
